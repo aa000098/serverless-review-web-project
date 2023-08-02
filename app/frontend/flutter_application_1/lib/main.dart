@@ -776,10 +776,10 @@ class _MainPageState extends State<MainPage> {
 class ShowDetailPage extends StatelessWidget {
   final Post post;
   final User? user;
+  final TextEditingController _commentController = TextEditingController();
 
-  TextEditingController _commentController = TextEditingController();
   void _submitComment() {
-    String comment = _commentController.text;
+    // String comment = _commentController.text;
     _commentController.clear();
   }
 
