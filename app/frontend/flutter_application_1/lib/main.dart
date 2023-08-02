@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(ReviewApp());
@@ -49,7 +51,7 @@ class User {
 
 List<User> mockUsers = [
   User("id", "pw"),
-  User("user", "password"),
+  User("a", "a"),
 ];
 
 class _LoginFormState extends State<LoginForm> {
@@ -62,6 +64,10 @@ class _LoginFormState extends State<LoginForm> {
 
   bool _isPasswordValid(String password) {
     return password.isNotEmpty && password.length >= 6;
+  }
+
+  bool isIDExists(id) {
+    return mockUsers.any((user) => user.id == id);
   }
 
   void _showSignUpDialog(BuildContext context) {
@@ -102,20 +108,40 @@ class _LoginFormState extends State<LoginForm> {
                 SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () {
-                    String email = _emailController.text;
+                    String id = _emailController.text;
                     String pw = _passwordController.text;
 
-                    if (_isIDValid(email) && _isPasswordValid(pw)) {
-                      User newUser = User(email, pw);
-                      mockUsers.add(newUser);
-                      Navigator.pop(context);
+                    if (_isIDValid(id) && _isPasswordValid(pw)) {
+                      if (isIDExists(id)) {
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: Text('오류'),
+                              content: Text('이미 존재하는 아이디 입니다.'),
+                              actions: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text('확인'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      } else {
+                        User newUser = User(id, pw);
+                        mockUsers.add(newUser);
+                        Navigator.pop(context);
+                      }
                     } else {
                       showDialog(
                         context: context,
                         builder: (context) {
                           return AlertDialog(
                             title: Text('오류'),
-                            content: Text('이메일과 비밀번호는 최소 6자리 입니다.'),
+                            content: Text('아이디와 비밀번호는 최소 6자리 입니다.'),
                             actions: [
                               ElevatedButton(
                                 onPressed: () {
@@ -277,7 +303,7 @@ class StarDisplay extends StatelessWidget {
         return Icon(
           index < value ? Icons.star : Icons.star_border,
           color: Colors.amber,
-          size: 30,
+          size: 20,
         );
       }),
     );
@@ -321,9 +347,9 @@ class StarRating extends StatelessWidget {
 
 // 리뷰쓰기 페이지
 class ShowWritingPage extends StatefulWidget {
-  final String userID;
+  final User user;
 
-  ShowWritingPage({required this.userID});
+  ShowWritingPage({required this.user});
 
   @override
   _PostReviewState createState() => _PostReviewState();
@@ -349,7 +375,7 @@ class _PostReviewState extends State<ShowWritingPage> {
     bool isPadMode = MediaQuery.of(context).size.width > 900;
 
     String title = _titleController.text;
-    String userID = widget.userID;
+    String userID = widget.user.id;
     String? category = _selectedCategory;
     String content = _contentController.text;
     int score = _rating;
@@ -390,10 +416,15 @@ class _PostReviewState extends State<ShowWritingPage> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainPage(user: widget.user),
+              ),
+            );
           },
           icon: Icon(
-            Icons.cancel,
+            Icons.arrow_back,
             size: 30,
           ),
         ),
@@ -417,7 +448,7 @@ class _PostReviewState extends State<ShowWritingPage> {
                         actions: [
                           TextButton(
                             onPressed: () {
-                              Navigator.pop(context);
+                              Navigator.pop(context, List.from(posts));
                             },
                             child: Text('확인'),
                           ),
@@ -426,15 +457,13 @@ class _PostReviewState extends State<ShowWritingPage> {
                     },
                   );
                 } else {
-                  posts.add(
-                    Post(
-                        title: title,
-                        category: category,
-                        content: content,
-                        id: userID,
-                        score: score),
+                  addPost(title, category, content, userID, score);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MainPage(user: widget.user),
+                    ),
                   );
-                  Navigator.pop(context);
                 }
               },
               child: Text(
@@ -545,8 +574,6 @@ class _PostReviewState extends State<ShowWritingPage> {
     );
   }
 }
-
-List<Post> posts = [];
 
 // 메인 페이지
 class MainPage extends StatefulWidget {
@@ -660,24 +687,55 @@ class _MainPageState extends State<MainPage> {
 
       // 메인 페이지 리스트
       body: Padding(
-        padding: EdgeInsets.all(isPadMode ? 60 : 40),
+        padding: EdgeInsets.all(isPadMode ? 40 : 15),
         child: filteredPosts.isEmpty
             ? Text('게시물이 없습니다.')
             : ListView.builder(
                 itemCount: filteredPosts.length,
                 itemBuilder: (context, index) {
                   return SizedBox(
-                    height: 100,
+                    height: 180,
                     child: Card(
-                      child: ListTile(
-                        title: Text(filteredPosts[index].title),
-                        subtitle: Text('작성자: ${filteredPosts[index].id}'),
+                      child: InkWell(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 150,
+                                height: 150,
+                                child: Card(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              SizedBox(width: 15),
+                              Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('제목: ${filteredPosts[index].title}'),
+                                    SizedBox(height: 12),
+                                    Text(
+                                        '작성자: ${filteredPosts[index].writer_id}'),
+                                    SizedBox(height: 12),
+                                    StarDisplay(
+                                        value: filteredPosts[index].score),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         onTap: () {
-                          Navigator.push(
+                          Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ShowDetailPage(post: filteredPosts[index]),
+                              builder: (context) => ShowDetailPage(
+                                  post: filteredPosts[index],
+                                  user: widget.user),
                             ),
                           );
                         },
@@ -689,90 +747,535 @@ class _MainPageState extends State<MainPage> {
       ),
       // 메인 페이지 리뷰쓰기 버튼
       floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            if (isLoggedIn) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        ShowWritingPage(userID: widget.user!.id)),
-              );
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LoginPage(),
-                ),
-              );
-            }
-          },
-          backgroundColor: Color.fromARGB(255, 73, 6, 218),
-          label: const Text('리뷰쓰기'),
-          icon: const Icon(Icons.add)),
+        onPressed: () async {
+          if (isLoggedIn) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ShowWritingPage(user: widget.user!),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LoginPage(),
+              ),
+            );
+          }
+        },
+        backgroundColor: Color.fromARGB(255, 73, 6, 218),
+        label: const Text('리뷰쓰기'),
+        icon: const Icon(Icons.add),
+      ),
     );
   }
 }
 
-// 리뷰글 페이지
+// 리뷰 상세 페이지
 class ShowDetailPage extends StatelessWidget {
   final Post post;
+  final User? user;
 
-  ShowDetailPage({required this.post});
+  TextEditingController _commentController = TextEditingController();
+  void _submitComment() {
+    String comment = _commentController.text;
+    _commentController.clear();
+  }
+
+  ShowDetailPage({required this.post, this.user});
 
   @override
   Widget build(BuildContext context) {
+    bool isCurrentUserAuthor = user != null && post.writer_id == user!.id;
+
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainPage(user: user),
+              ),
+            );
+          },
+          icon: Icon(
+            Icons.arrow_back,
+            size: 30,
+          ),
+        ),
         title: Text('게시물 상세'),
+        actions: [
+          isCurrentUserAuthor
+              ? PopupMenuButton(
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      deletePost(post.postid);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MainPage(user: user),
+                        ),
+                      );
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Text('삭제'),
+                    ),
+                  ],
+                )
+              : SizedBox(),
+        ],
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Column(
-              children: [
-                Text(post.title),
-                SizedBox(height: 20),
-                SizedBox(
-                  height: 300,
-                  width: 400,
-                  child: Card(),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(20),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    post.title,
+                    style: TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  SizedBox(
+                    height: 300,
+                    width: 400,
+                    child: Card(
+                        // 사진 불러오기
+                        ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                width: 350,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 30),
+                    Text(
+                      '작성시간 : ${DateFormat('yyyy-MM-dd HH:mm').format(post.createdTime)}',
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      '작성자 : ${post.writer_id}',
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      '카테고리 : ${post.category}',
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    StarDisplay(value: post.score),
+                    SizedBox(height: 20),
+                    Text(
+                      '내용',
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      post.content,
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+              SizedBox(height: 50),
+              SizedBox(
+                width: 400,
+                child: Column(
+                  children: [
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4)),
+                      child: ListView(
+                        children: [
+                          Card(
+                            child: ListTile(
+                              title: Text('댓글1'),
+                              subtitle: Text('내용1'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    user != null
+                        ? SizedBox(
+                            child: Column(
+                              children: [
+                                TextField(
+                                  controller: _commentController,
+                                  decoration: InputDecoration(
+                                    hintText: '댓글을 입력하세요.',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: _submitComment,
+                                  child: Text('제출'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Text('로그인 후 댓글을 작성할 수 있습니다.'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: isCurrentUserAuthor
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                if (user != null) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ShowEditPage(post: post, user: user),
+                    ),
+                  );
+                }
+              },
+              backgroundColor: Color.fromARGB(255, 73, 6, 218),
+              label: const Text('수정'),
+              icon: const Icon(Icons.edit),
+            )
+          : null,
+    );
+  }
+}
+
+// 리뷰 수정 페이지
+class ShowEditPage extends StatefulWidget {
+  final Post post;
+  final User? user;
+
+  ShowEditPage({required this.post, required this.user});
+
+  @override
+  _PostEditState createState() => _PostEditState();
+}
+
+class _PostEditState extends State<ShowEditPage> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _contentController = TextEditingController();
+  String? _selectedCategory;
+  int _rating = 0;
+  List<XFile> _selectedImage = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.text = widget.post.title;
+    _contentController.text = widget.post.content;
+    _selectedCategory = widget.post.category;
+    _rating = widget.post.score;
+  }
+
+  void _selectImage() async {
+    final picker = ImagePicker();
+    final List<XFile> pickedImage = await picker.pickMultiImage();
+    setState(() {
+      _selectedImage = pickedImage;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool isPadMode = MediaQuery.of(context).size.width > 900;
+
+    String postid = widget.post.postid;
+    String title = _titleController.text;
+    String userID = widget.post.writer_id;
+    String? category = _selectedCategory;
+    String content = _contentController.text;
+
+    List<Widget> _boxContents = [
+      IconButton(
+        onPressed: () {
+          _selectImage();
+        },
+        icon: Container(
+          alignment: Alignment.center,
+          decoration:
+              BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+          child: Icon(
+            Icons.camera_alt_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+      Container(),
+      Container(),
+      _selectedImage.length <= 4
+          ? Container()
+          : FittedBox(
+              child: Container(
+                padding: EdgeInsets.all(6),
+                decoration:
+                    BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Text(
+                  '+${(_selectedImage.length - 4).toString()}',
+                ),
+              ),
             ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text(post.id),
-                SizedBox(height: 20),
-                Text(post.category),
-                SizedBox(height: 20),
-                Text(post.content),
-                SizedBox(height: 20),
-                StarDisplay(value: post.score),
-              ],
-            ),
+    ];
+
+    return Scaffold(
+      // 상단바
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    ShowDetailPage(post: widget.post, user: widget.user),
+              ),
+            );
+          },
+          icon: Icon(
+            Icons.arrow_back,
+            size: 30,
+          ),
+        ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('리뷰쓰기'),
           ],
+        ),
+        actions: [
+          SizedBox(
+            child: TextButton(
+              onPressed: () {
+                if (title.isEmpty || category == null || content.isEmpty) {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: Text('오류'),
+                        content: Text('모든 정보를 입력해주세요.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: Text('확인'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                } else {
+                  updatePost(postid, _titleController.text, _selectedCategory!,
+                      _contentController.text, userID, _rating);
+                  Post updatedPost = getPost(postid);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ShowDetailPage(post: updatedPost, user: widget.user),
+                    ),
+                  );
+                }
+              },
+              child: Text(
+                '제출',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      // 입력란
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            vertical: 40, horizontal: isPadMode ? 280 : 100),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(labelText: '제목'),
+              ),
+              SizedBox(height: 60),
+              Container(
+                height: 130,
+                width: 400,
+                child: GridView.count(
+                  padding: EdgeInsets.all(2),
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 5,
+                  childAspectRatio: 0.9,
+                  shrinkWrap: true,
+                  children: List.generate(
+                    4,
+                    (index) => DottedBorder(
+                      color: Colors.blue,
+                      dashPattern: [5, 3],
+                      borderType: BorderType.RRect,
+                      radius: Radius.circular(10),
+                      child: Container(
+                        decoration: index <= _selectedImage.length - 1
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  fit: BoxFit.cover,
+                                  image: FileImage(
+                                    File(_selectedImage[index].path),
+                                  ),
+                                ),
+                              )
+                            : null,
+                        child: Center(child: _boxContents[index]),
+                      ),
+                    ),
+                  ).toList(),
+                ),
+              ),
+              SizedBox(height: 30),
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: InputDecoration(labelText: '카테고리'),
+                items: ['의', '식', '주']
+                    .map((category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(
+                    () {
+                      _selectedCategory = value;
+                    },
+                  );
+                },
+              ),
+              SizedBox(height: 50),
+              TextField(
+                controller: _contentController,
+                decoration: InputDecoration(
+                  labelText: '내용',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+              ),
+              SizedBox(height: 50),
+              Row(
+                children: [
+                  Text('별점:'),
+                  StarRating(
+                    value: _rating, // 현재 선택된 별점
+                    filledStar: Icons.star, // 채워진 별 아이콘
+                    unfilledStar: Icons.star_border, // 빈 별 아이콘
+                    onChanged: (index) {
+                      setState(() {
+                        _rating = index; // 선택된 별점을 상태로 저장
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+List<Post> posts = [];
+
 class Post {
+  final String postid;
   final String title;
   final String content;
-  final String id;
+  final String writer_id;
   final int score;
   final String category;
+  final DateTime createdTime;
 
   Post({
+    required this.postid,
     required this.title,
     required this.category,
     required this.content,
-    required this.id,
+    required this.writer_id,
     required this.score,
+    required this.createdTime,
   });
+
+  factory Post.createNewPost(String title, String category, String content,
+      String writer_id, int score) {
+    return Post(
+      postid: Uuid().v4(),
+      title: title,
+      category: category,
+      content: content,
+      writer_id: writer_id,
+      score: score,
+      createdTime: DateTime.now(),
+    );
+  }
+}
+
+void addPost(String title, String category, String content, String writer_id,
+    int score) {
+  posts.add(Post.createNewPost(title, category, content, writer_id, score));
+}
+
+Post getPost(String postid) {
+  return posts.firstWhere((post) => post.postid == postid);
+}
+
+void updatePost(String postid, String title, String category, String content,
+    String writer_id, int score) {
+  final index = posts.indexWhere((post) => post.postid == postid);
+  if (index != -1) {
+    posts[index] = Post(
+      postid: postid,
+      title: title,
+      category: category,
+      content: content,
+      writer_id: posts[index].writer_id,
+      score: score,
+      createdTime: posts[index].createdTime,
+    );
+  }
+}
+
+void deletePost(postid) {
+  posts.removeWhere((post) => post.postid == postid);
 }
 
 // 메인페이지 상단 검색창
@@ -793,7 +1296,7 @@ class _SearchBarState extends State<SearchBar> {
   @override
   Widget build(BuildContext context) {
     int mediaSize = MediaQuery.of(context).size.width.toInt();
-    return Column(
+    return Row(
       children: [
         SizedBox(
           width: mediaSize / 3,
@@ -816,7 +1319,7 @@ class _SearchBarState extends State<SearchBar> {
             },
           ),
         ),
-        SizedBox(height: 3),
+        SizedBox(width: 15),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
