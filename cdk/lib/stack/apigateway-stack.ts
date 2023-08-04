@@ -4,7 +4,6 @@ import { getAccountUniqueName } from '../config/accounts';
 import { SYSTEM_NAME } from '../config/common';
 import { ReviewWebStackProps } from '../reviewweb-stack';
 import * as ApiGateway from 'aws-cdk-lib/aws-apigateway'
-import { ReviewWebLambdaStack } from './lambda-stack';
 
 export class ReviewWebApigatewayStack extends cdk.Stack {
     public apigw: ApiGateway.IRestApi
