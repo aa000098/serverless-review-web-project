@@ -11,7 +11,8 @@ import path = require('path');
 
 
 export class ReviewWebLambdaStack extends cdk.Stack {
-    public readonly LambdaFunction: PythonFunction;
+    public readonly LoginFunction: PythonFunction;
+    public readonly ReviewFunction: PythonFunction;
 
     constructor(scope: Construct, id: string, props: ReviewWebStackProps) {
         super(scope, id, props);
@@ -30,7 +31,19 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             ]
         });
 
-        this.LambdaFunction = new PythonFunction(this, `${SYSTEM_NAME}-handler-file`, {
+        this.LoginFunction = new PythonFunction(this, `${SYSTEM_NAME}-login-file`, {
+            functionName: `${getAccountUniqueName(props.context)}-reviewweb-login-file`.toLowerCase(),
+            handler: 'lambda_handler',
+            entry: path.join(__dirname, '../../../app/backend'),
+            index: 'login_function.py',
+            runtime: Runtime.PYTHON_3_10,
+            role: lambdaRole,
+            environment: {
+                'USER_TABLE_NAME': props.dynamoDBStack!.UserTable.tableName,
+            },
+        });
+
+        this.ReviewFunction = new PythonFunction(this, `${SYSTEM_NAME}-handler-file`, {
             functionName: `${getAccountUniqueName(props.context)}-reviewweb-handler-file`.toLowerCase(),
             handler: 'lambda_handler',
             entry: path.join(__dirname, '../../../app/backend'),
@@ -44,5 +57,7 @@ export class ReviewWebLambdaStack extends cdk.Stack {
                 'COMMENT_TABLE_NAME': props.dynamoDBStack!.CommentTable.tableName,
             },
         });
+
+
     }
 }

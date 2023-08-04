@@ -18,14 +18,25 @@ export class ReviewWebApigatewayStack extends cdk.Stack {
 
         this.apigw = apigw;
 
-        const LambdaFunction = props.lambdaStack?.LambdaFunction
-        if (LambdaFunction != null) {
-            const integration = new ApiGateway.LambdaIntegration(LambdaFunction);
-            const resource = apigw.root.addResource(`${SYSTEM_NAME}-apigw-resource`);
-            resource.addMethod('GET', integration);
+        const LoginFunction = props.lambdaStack?.LoginFunction
+        const ReviewFunction = props.lambdaStack?.ReviewFunction
+
+        if (LoginFunction != null) {
+            const login_integration = new ApiGateway.LambdaIntegration(LoginFunction);
+            const login_resource = apigw.root.addResource(`${SYSTEM_NAME}-apigw-login-resource`);
+            login_resource.addMethod('GET', login_integration);
+            login_resource.addMethod('POST', login_integration);
+            login_resource.addMethod('UPDATE', login_integration);
+            login_resource.addMethod('DELETE', login_integration);
         }
 
-
-
+        if (ReviewFunction != null) {
+            const review_integration = new ApiGateway.LambdaIntegration(ReviewFunction);
+            const review_resource = apigw.root.addResource(`${SYSTEM_NAME}-apigw-review-resource`);
+            review_resource.addMethod('GET', review_integration);
+            review_resource.addMethod('POST', review_integration);
+            review_resource.addMethod('UPDATE', review_integration);
+            review_resource.addMethod('DELETE', review_integration);
+        }
     }
 }
