@@ -11,6 +11,8 @@ import path = require('path');
 
 
 export class ReviewWebLambdaStack extends cdk.Stack {
+    public readonly LambdaFunction: PythonFunction;
+
     constructor(scope: Construct, id: string, props: ReviewWebStackProps) {
         super(scope, id, props);
 
@@ -28,11 +30,11 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             ]
         });
 
-        new PythonFunction(this, `${SYSTEM_NAME}-handler-file`, {
-            functionName: `${getAccountUniqueName(props.context)}-handler`,
-            handler: 'lambda-handler',
+        this.LambdaFunction = new PythonFunction(this, `${SYSTEM_NAME}-handler-file`, {
+            functionName: `${getAccountUniqueName(props.context)}-reviewweb-handler-file`.toLowerCase(),
+            handler: 'lambda_handler',
             entry: path.join(__dirname, '../../../app/backend'),
-            index: 'lambda-hanlder.py',
+            index: 'lambda_handler.py',
             runtime: Runtime.PYTHON_3_10,
             role: lambdaRole,
             environment: {

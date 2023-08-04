@@ -13,22 +13,26 @@ export class ReviewWebDynamoDBStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ReviewWebStackProps) {
     super(scope, id, props);
 
-    this.UserTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-UserTable`, {
-      tableName: `${getAccountUniqueName}-reviewweb-user-table`,
+    const UserTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-UserTable`, {
+      tableName: `${getAccountUniqueName(props.context)}-reviewweb-user-table`.toLowerCase(),
       partitionKey: { name: 'UserID', type: dynamoDB.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    this.PostTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-PostTable`, {
-      tableName: `${getAccountUniqueName}-reviewweb-post-table`,
+    const PostTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-PostTable`, {
+      tableName: `${getAccountUniqueName(props.context)}-reviewweb-post-table`.toLowerCase(),
       partitionKey: { name: 'postID', type: dynamoDB.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    this.PostTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-CommentTable`, {
-      tableName: `${getAccountUniqueName}-reviewweb-comment-table`,
+    const CommentTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-CommentTable`, {
+      tableName: `${getAccountUniqueName(props.context)}-reviewweb-comment-table`.toLowerCase(),
       partitionKey: { name: 'commentID', type: dynamoDB.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+
+    this.UserTable = UserTable;
+    this.PostTable = PostTable;
+    this.CommentTable = CommentTable;
   }
 }
