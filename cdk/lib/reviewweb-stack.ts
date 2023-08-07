@@ -27,6 +27,7 @@ export class ReviewWebStack extends cdk.Stack {
 
     const lambdaStack = new ReviewWebLambdaStack(this, `${SYSTEM_NAME}-lambdaStack`, props);
     props.lambdaStack = lambdaStack;
+
     const apiGatewayStack = new ReviewWebApigatewayStack(this, `${SYSTEM_NAME}-apigatewayStack`, props);
     props.apiGatewayStack = apiGatewayStack;
 

@@ -12,7 +12,8 @@ import path = require('path');
 
 export class ReviewWebLambdaStack extends cdk.Stack {
     public readonly LoginFunction: PythonFunction;
-    public readonly ReviewFunction: PythonFunction;
+    public readonly PostFunction: PythonFunction;
+    public readonly CommentFunction: PythonFunction;
 
     constructor(scope: Construct, id: string, props: ReviewWebStackProps) {
         super(scope, id, props);
@@ -43,21 +44,30 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             },
         });
 
-        this.ReviewFunction = new PythonFunction(this, `${SYSTEM_NAME}-handler-file`, {
-            functionName: `${getAccountUniqueName(props.context)}-reviewweb-handler-file`.toLowerCase(),
+
+        this.PostFunction = new PythonFunction(this, `${SYSTEM_NAME}-post-file`, {
+            functionName: `${getAccountUniqueName(props.context)}-reviewweb-post-file`.toLowerCase(),
             handler: 'lambda_handler',
             entry: path.join(__dirname, '../../../app/backend'),
-            index: 'lambda_handler.py',
+            index: 'post_function.py',
             runtime: Runtime.PYTHON_3_10,
             role: lambdaRole,
             environment: {
-                'BUCKET_NAME': props.s3Stack!.bucket.bucketName,
-                'USER_TABLE_NAME': props.dynamoDBStack!.UserTable.tableName,
                 'POST_TABLE_NAME': props.dynamoDBStack!.PostTable.tableName,
-                'COMMENT_TABLE_NAME': props.dynamoDBStack!.CommentTable.tableName,
+                'BUCKET_NAME': props.s3Stack!.bucket.bucketName
             },
         });
 
-
+        this.CommentFunction = new PythonFunction(this, `${SYSTEM_NAME}-comment-file`, {
+            functionName: `${getAccountUniqueName(props.context)}-reviewweb-comment-file`.toLowerCase(),
+            handler: 'lambda_handler',
+            entry: path.join(__dirname, '../../../app/backend'),
+            index: 'comment_function.py',
+            runtime: Runtime.PYTHON_3_10,
+            role: lambdaRole,
+            environment: {
+                'COMMENT_TABLE_NAME': props.dynamoDBStack!.CommentTable.tableName,
+            },
+        });
     }
 }

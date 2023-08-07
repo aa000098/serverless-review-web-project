@@ -15,19 +15,19 @@ export class ReviewWebDynamoDBStack extends cdk.Stack {
 
     const UserTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-UserTable`, {
       tableName: `${getAccountUniqueName(props.context)}-reviewweb-user-table`.toLowerCase(),
-      partitionKey: { name: 'UserID', type: dynamoDB.AttributeType.STRING },
+      partitionKey: { name: 'user_ID', type: dynamoDB.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const PostTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-PostTable`, {
       tableName: `${getAccountUniqueName(props.context)}-reviewweb-post-table`.toLowerCase(),
-      partitionKey: { name: 'postID', type: dynamoDB.AttributeType.STRING },
+      partitionKey: { name: 'post_ID', type: dynamoDB.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const CommentTable = new dynamoDB.Table(this, `${SYSTEM_NAME}-CommentTable`, {
       tableName: `${getAccountUniqueName(props.context)}-reviewweb-comment-table`.toLowerCase(),
-      partitionKey: { name: 'commentID', type: dynamoDB.AttributeType.STRING },
+      partitionKey: { name: 'comment_ID', type: dynamoDB.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
