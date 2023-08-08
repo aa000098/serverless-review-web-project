@@ -3,13 +3,12 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() async {
-  await dotenv.load();
+void main() {
+  // dotenv.load(fileName: "app/frontend/flutter_application_1/assets/config/.env");
   runApp(ReviewApp());
 }
 
@@ -41,31 +40,23 @@ class LoginPage extends StatelessWidget {
   }
 }
 
-class User {
-  final String id;
-  final String password;
-
-  User(this.id, this.password);
-}
-
-List<User> mockUsers = [
-  User("id", "pw"),
-  User("a", "a"),
-];
-
 class LoginForm extends StatefulWidget {
   @override
   _LoginFormState createState() => _LoginFormState();
 }
 
+const apiUrl =
+    "https://gkeqjfyqub.execute-api.ap-northeast-2.amazonaws.com/dev";
+const apiKey = "MekCH2VUuz7PmvsDURiXE5ar5wGJHz9a3v1XdgSH";
+
 class _LoginFormState extends State<LoginForm> {
-  final String apiUrl = dotenv.env['API_URL']!;
-  final String apiKey = dotenv.env['API_KEY']!;
-  final String login = dotenv.env['API_LOGIN']!;
+  //final String apiUrl = dotenv.env['API_URL']!;
+  //final String apiKey = dotenv.env['API_KEY']!;
+  //final String login = dotenv.env['API_LOGIN']!;
+  static const login = "ReviewWeb-apigw-login-resource";
+  static const String requestUrl = '$apiUrl/$login';
 
-  Future<bool> isCreateUserSuccess(entered_id, entered_pw) async {
-    final String requestUrl = '$apiUrl/$login';
-
+  Future<bool> _isCreateUserSuccess(entered_id, entered_pw) async {
     final Map<String, String> data = {
       'method': 'create_user',
       'entered_id': entered_id,
@@ -140,7 +131,7 @@ class _LoginFormState extends State<LoginForm> {
                     String entered_pw = _passwordController.text;
                     if (_isIDValid(entered_id) &&
                         _isPasswordValid(entered_pw)) {
-                      isCreateUserSuccess(entered_id, entered_pw).then(
+                      _isCreateUserSuccess(entered_id, entered_pw).then(
                         (isSuccess) {
                           if (isSuccess) {
                             Navigator.pop(context);
@@ -200,46 +191,28 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
-  void _login() {
-    String enteredID = _emailController.text;
-    String enteredPassword = _passwordController.text;
+  Future<bool> _login() async {
+    String entered_id = _emailController.text;
+    String entered_pw = _passwordController.text;
 
-    bool loginSuccess = false;
-    User? loggedInUser;
+    final Map<String, String> data = {
+      'method': 'read_user',
+      'entered_id': entered_id,
+      'entered_pw': entered_pw,
+    };
 
-    for (User user in mockUsers) {
-      if (user.id == enteredID && user.password == enteredPassword) {
-        loginSuccess = true;
-        loggedInUser = user;
-        break;
-      }
-    }
-
-    if (loginSuccess) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MainPage(user: loggedInUser!),
-        ),
-      );
+    final response = await http.post(
+      Uri.parse(requestUrl),
+      headers: {
+        'x-api-key': apiKey,
+      },
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      return true;
     } else {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text('Login Failed'),
-            content: Text('Invalid email or password.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
+      print(response.statusCode);
+      return false;
     }
   }
 
@@ -307,7 +280,37 @@ class _LoginFormState extends State<LoginForm> {
           ),
           SizedBox(height: 12.0),
           ElevatedButton(
-            onPressed: _login,
+            onPressed: () {
+              _login().then((isLoggedIn) {
+                if (isLoggedIn) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          MainPage(userid: _emailController.text),
+                    ),
+                  );
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: Text('Login Failed'),
+                        content: Text('아이디 비밀번호가 틀렸습니다.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: Text('OK'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+              });
+            },
             child: SizedBox(
               width: 150,
               height: 40,
@@ -382,9 +385,9 @@ class StarRating extends StatelessWidget {
 
 // 리뷰쓰기 페이지
 class ShowWritingPage extends StatefulWidget {
-  final User user;
+  final String userid;
 
-  ShowWritingPage({required this.user});
+  ShowWritingPage({required this.userid});
 
   @override
   _PostReviewState createState() => _PostReviewState();
@@ -410,7 +413,7 @@ class _PostReviewState extends State<ShowWritingPage> {
     bool isPadMode = MediaQuery.of(context).size.width > 900;
 
     String title = _titleController.text;
-    String userID = widget.user.id;
+    String userID = widget.userid;
     String? category = _selectedCategory;
     String content = _contentController.text;
     int score = _rating;
@@ -454,7 +457,7 @@ class _PostReviewState extends State<ShowWritingPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => MainPage(user: widget.user),
+                builder: (context) => MainPage(userid: widget.userid),
               ),
             );
           },
@@ -496,7 +499,7 @@ class _PostReviewState extends State<ShowWritingPage> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => MainPage(user: widget.user),
+                      builder: (context) => MainPage(userid: widget.userid),
                     ),
                   );
                 }
@@ -612,37 +615,48 @@ class _PostReviewState extends State<ShowWritingPage> {
 
 // 메인 페이지
 class MainPage extends StatefulWidget {
-  final User? user;
+  final String? userid;
 
-  MainPage({this.user});
+  MainPage({this.userid});
 
   @override
   _MainPageState createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
-  List<Post> filteredPosts = [];
+  Future<List<Post>> filteredPosts = Future<List<Post>>.value([]);
 
   @override
   void initState() {
     super.initState();
-    filteredPosts = List.from(posts);
+    fetchPosts();
+  }
+
+  Future<void> fetchPosts() async {
+    List<Post> posts = await readPost();
+    setState(() {
+      filteredPosts = Future<List<Post>>.value(posts);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isLoggedIn = widget.user != null;
+    bool isLoggedIn = widget.userid != null;
     bool isPadMode = MediaQuery.of(context).size.width > 700;
-    void filtering(String searchText, String category) {
+
+    Future<void> filtering(String searchText, String category) async {
+      await fetchPosts();
+      List<Post> posts = await filteredPosts;
+      List<Post> filtered = posts.where((post) {
+        bool isCategoryMatched = category == '전체' || post.category == category;
+        bool isTitleMatched =
+            post.title.toLowerCase().contains(searchText.toLowerCase());
+        return isCategoryMatched && (searchText.isEmpty || isTitleMatched);
+      }).toList();
+
       setState(
         () {
-          filteredPosts = posts.where((post) {
-            bool isCategoryMatched =
-                category == '전체' || post.category == category;
-            bool isTitleMatched =
-                post.title.toLowerCase().contains(searchText.toLowerCase());
-            return isCategoryMatched && (searchText.isEmpty || isTitleMatched);
-          }).toList();
+          filteredPosts = Future.value(filtered);
         },
       );
     }
@@ -659,7 +673,7 @@ class _MainPageState extends State<MainPage> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => MainPage(user: widget.user)),
+                    builder: (context) => MainPage(userid: widget.userid)),
               );
             },
             icon: Icon(
@@ -723,62 +737,74 @@ class _MainPageState extends State<MainPage> {
       // 메인 페이지 리스트
       body: Padding(
         padding: EdgeInsets.all(isPadMode ? 40 : 15),
-        child: filteredPosts.isEmpty
-            ? Text('게시물이 없습니다.')
-            : ListView.builder(
-                itemCount: filteredPosts.length,
-                itemBuilder: (context, index) {
-                  return SizedBox(
-                    height: 180,
-                    child: Card(
-                      child: InkWell(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 150,
-                                height: 150,
-                                child: Card(
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              SizedBox(width: 15),
-                              Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+        child: FutureBuilder<List<Post>>(
+          future: filteredPosts,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('오류 발생: ${snapshot.error}');
+            } else {
+              List<Post> posts = snapshot.data ?? [];
+              return posts.isEmpty
+                  ? Text('게시물이 없습니다.')
+                  : ListView.builder(
+                      itemCount: posts.length,
+                      itemBuilder: (context, index) {
+                        return SizedBox(
+                          height: 180,
+                          child: Card(
+                            child: InkWell(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Text('제목: ${filteredPosts[index].title}'),
-                                    SizedBox(height: 12),
-                                    Text(
-                                        '작성자: ${filteredPosts[index].writer_id}'),
-                                    SizedBox(height: 12),
-                                    StarDisplay(
-                                        value: filteredPosts[index].score),
+                                    SizedBox(
+                                      width: 150,
+                                      height: 150,
+                                      child: Card(
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    SizedBox(width: 15),
+                                    Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text('제목: ${posts[index].title}'),
+                                          SizedBox(height: 12),
+                                          Text('작성자: ${posts[index].writerid}'),
+                                          SizedBox(height: 12),
+                                          StarDisplay(
+                                              value: posts[index].score),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ShowDetailPage(
-                                  post: filteredPosts[index],
-                                  user: widget.user),
+                              onTap: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ShowDetailPage(
+                                        post: posts[index],
+                                        userid: widget.userid),
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
+                          ),
+                        );
+                      },
+                    );
+            }
+          },
+        ),
       ),
       // 메인 페이지 리뷰쓰기 버튼
       floatingActionButton: FloatingActionButton.extended(
@@ -787,7 +813,7 @@ class _MainPageState extends State<MainPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ShowWritingPage(user: widget.user!),
+                builder: (context) => ShowWritingPage(userid: widget.userid!),
               ),
             );
           } else {
@@ -810,7 +836,7 @@ class _MainPageState extends State<MainPage> {
 // 리뷰 상세 페이지
 class ShowDetailPage extends StatelessWidget {
   final Post post;
-  final User? user;
+  final String? userid;
   final TextEditingController _commentController = TextEditingController();
 
   void _submitComment() {
@@ -818,11 +844,11 @@ class ShowDetailPage extends StatelessWidget {
     _commentController.clear();
   }
 
-  ShowDetailPage({required this.post, this.user});
+  ShowDetailPage({required this.post, this.userid});
 
   @override
   Widget build(BuildContext context) {
-    bool isCurrentUserAuthor = user != null && post.writer_id == user!.id;
+    bool isCurrentUserAuthor = userid != null && post.writerid == userid!;
 
     return Scaffold(
       appBar: AppBar(
@@ -831,7 +857,7 @@ class ShowDetailPage extends StatelessWidget {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => MainPage(user: user),
+                builder: (context) => MainPage(userid: userid),
               ),
             );
           },
@@ -850,7 +876,7 @@ class ShowDetailPage extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => MainPage(user: user),
+                          builder: (context) => MainPage(userid: userid),
                         ),
                       );
                     }
@@ -904,7 +930,7 @@ class ShowDetailPage extends StatelessWidget {
                     ),
                     SizedBox(height: 10),
                     Text(
-                      '작성자 : ${post.writer_id}',
+                      '작성자 : ${post.writerid}',
                       style: TextStyle(
                         fontSize: 15,
                       ),
@@ -956,7 +982,7 @@ class ShowDetailPage extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 10),
-                    user != null
+                    userid != null
                         ? SizedBox(
                             child: Column(
                               children: [
@@ -986,12 +1012,12 @@ class ShowDetailPage extends StatelessWidget {
       floatingActionButton: isCurrentUserAuthor
           ? FloatingActionButton.extended(
               onPressed: () {
-                if (user != null) {
+                if (userid != null) {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          ShowEditPage(post: post, user: user),
+                          ShowEditPage(post: post, userid: userid),
                     ),
                   );
                 }
@@ -1008,9 +1034,9 @@ class ShowDetailPage extends StatelessWidget {
 // 리뷰 수정 페이지
 class ShowEditPage extends StatefulWidget {
   final Post post;
-  final User? user;
+  final String? userid;
 
-  ShowEditPage({required this.post, required this.user});
+  ShowEditPage({required this.post, required this.userid});
 
   @override
   _PostEditState createState() => _PostEditState();
@@ -1046,7 +1072,6 @@ class _PostEditState extends State<ShowEditPage> {
 
     String postid = widget.post.postid;
     String title = _titleController.text;
-    String userID = widget.post.writer_id;
     String? category = _selectedCategory;
     String content = _contentController.text;
 
@@ -1090,7 +1115,7 @@ class _PostEditState extends State<ShowEditPage> {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    ShowDetailPage(post: widget.post, user: widget.user),
+                    ShowDetailPage(post: widget.post, userid: widget.userid),
               ),
             );
           },
@@ -1129,15 +1154,16 @@ class _PostEditState extends State<ShowEditPage> {
                   );
                 } else {
                   updatePost(postid, _titleController.text, _selectedCategory!,
-                      _contentController.text, userID, _rating);
-                  Post updatedPost = getPost(postid);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ShowDetailPage(post: updatedPost, user: widget.user),
-                    ),
-                  );
+                      _contentController.text, _rating);
+                  getPost(postid).then((updatedPost) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ShowDetailPage(
+                            post: updatedPost, userid: widget.userid),
+                      ),
+                    );
+                  });
                 }
               },
               child: Text(
@@ -1255,7 +1281,7 @@ class Post {
   final String postid;
   final String title;
   final String content;
-  final String writer_id;
+  final String writerid;
   final int score;
   final String category;
   final DateTime createdTime;
@@ -1265,52 +1291,113 @@ class Post {
     required this.title,
     required this.category,
     required this.content,
-    required this.writer_id,
+    required this.writerid,
     required this.score,
     required this.createdTime,
   });
+}
 
-  factory Post.createNewPost(String title, String category, String content,
-      String writer_id, int score) {
-    return Post(
-      postid: Uuid().v4(),
-      title: title,
-      category: category,
-      content: content,
-      writer_id: writer_id,
-      score: score,
-      createdTime: DateTime.now(),
-    );
+Future<void> addPost(String title, String category, String content,
+    String writerid, int score) async {
+  const post = "ReviewWeb-apigw-post-resource";
+  const String requestUrl = '$apiUrl/$post';
+
+  final Map<String, dynamic> data = {
+    'method': 'create_post',
+    'title': title,
+    'category': category,
+    'content': content,
+    'writerid': writerid,
+    'score': score,
+  };
+
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+}
+
+Future<List<Post>> readPost() async {
+  const post = "ReviewWeb-apigw-post-resource";
+  const String requestUrl = '$apiUrl/$post';
+
+  final Map<String, String> data = {
+    'method': 'read_post',
+  };
+
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+  List<Post> posts = [];
+
+  if (response.statusCode == 200) {
+    List<dynamic> data = json.decode(response.body);
+
+    posts = data
+        .map((item) => Post(
+              postid: item['post_ID'],
+              title: item['title'],
+              category: item['category'],
+              content: item['content'],
+              writerid: item['writerid'],
+              score: item['score'].toInt(),
+              createdTime: DateTime.parse(item['createdTime']),
+            ))
+        .toList();
   }
+  return posts;
 }
 
-void addPost(String title, String category, String content, String writer_id,
-    int score) {
-  posts.add(Post.createNewPost(title, category, content, writer_id, score));
+Future<Post> getPost(String postid) async {
+  List<Post> postlist = await readPost();
+  return postlist.firstWhere((post) => post.postid == postid);
 }
 
-Post getPost(String postid) {
-  return posts.firstWhere((post) => post.postid == postid);
+Future<void> updatePost(String postid, String title, String category,
+    String content, int score) async {
+  const post = "ReviewWeb-apigw-post-resource";
+  const String requestUrl = '$apiUrl/$post';
+
+  final Map<String, dynamic> data = {
+    'method': 'update_post',
+    'post_ID': postid,
+    'title': title,
+    'category': category,
+    'content': content,
+    'score': score,
+  };
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
 }
 
-void updatePost(String postid, String title, String category, String content,
-    String writer_id, int score) {
-  final index = posts.indexWhere((post) => post.postid == postid);
-  if (index != -1) {
-    posts[index] = Post(
-      postid: postid,
-      title: title,
-      category: category,
-      content: content,
-      writer_id: posts[index].writer_id,
-      score: score,
-      createdTime: posts[index].createdTime,
-    );
-  }
-}
+Future<void> deletePost(postid) async {
+  const post = "ReviewWeb-apigw-post-resource";
+  const String requestUrl = '$apiUrl/$post';
 
-void deletePost(postid) {
-  posts.removeWhere((post) => post.postid == postid);
+  final Map<String, dynamic> data = {
+    'method': 'delete_post',
+    'post_ID': postid,
+  };
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+  print(response.statusCode);
 }
 
 // 메인페이지 상단 검색창

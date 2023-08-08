@@ -56,7 +56,6 @@ def read_user(event,context):
             return {
                 'statusCode': 200,
                 'body': json.dumps(f'{entered_id} match!'),
-                'id': entered_id
             }
         else:
             return {
@@ -99,7 +98,6 @@ def update_user(event,context):
         return {
             'statusCode': 200,
             'body': json.dumps(f'{entered_id} changed!'),
-            'id': entered_id
         }
     else:
         return {
@@ -130,7 +128,6 @@ def delete_user(event, context):
         return {
             'statusCode': 200,
             'body': json.dumps(f'{entered_id} deleted!'),
-            'id': entered_id
         }
 
 

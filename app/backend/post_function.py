@@ -11,12 +11,12 @@ def create_post(event, context):
     dynamodb = session.resource('dynamodb')
     post_table = dynamodb.Table(os.getenv("POST_TABLE_NAME"))
     body = json.loads(event['body'])
-
+    
     postid = str(uuid.uuid4())
     title = body['title']
     category = body['category']
     content = body['content']
-    writer_id = body['writer_id']
+    writerid = body['writerid']
     score = body['score']
     createdTime = datetime.datetime.now().isoformat()
     
@@ -25,7 +25,7 @@ def create_post(event, context):
         'title': title,
         'category': category,
         'content': content,
-        'writer_id': writer_id,
+        'writerid': writerid,
         'score': score,
         'createdTime': createdTime,
     }
@@ -55,11 +55,13 @@ def read_post(event, context):
             "body" : json.dumps('An error occurred while reading posts.'),
         }
 
-    if 'Item' in response:
+    if 'Items' in response:
+        items = response['Items']
+        for item in items:
+            item['score'] = float(item['score'])
         return {
             "statusCode" : 200,
-            "body" : json.dumps('post read!'),
-            "content" : response['Item']
+            "body" : json.dumps(response['Items']),
         }
     else:
         return {
@@ -127,14 +129,14 @@ def delete_post(event, context):
 
 def lambda_handler(event, context):
     body = json.loads(event['body'])
-    if body['method']=='create_user':
-        return create_user(event,context)
-    elif body['method'] == 'read_user':
-        return read_user(event, context)
-    elif body['method'] == 'update_user':
-        return update_user(event, context)
-    elif body['method']=='delete_user':
-        return delete_user(event, context)
+    if body['method']=='create_post':
+        return create_post(event,context)
+    elif body['method'] == 'read_post':
+        return read_post(event, context)
+    elif body['method'] == 'update_post':
+        return update_post(event, context)
+    elif body['method']=='delete_post':
+        return delete_post(event, context)
     else:
         return {
             'statusCode':400,
