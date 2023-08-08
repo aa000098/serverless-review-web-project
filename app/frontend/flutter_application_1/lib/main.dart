@@ -486,7 +486,7 @@ class _PostReviewState extends State<ShowWritingPage> {
                         actions: [
                           TextButton(
                             onPressed: () {
-                              Navigator.pop(context, List.from(posts));
+                              Navigator.pop(context);
                             },
                             child: Text('확인'),
                           ),
@@ -634,9 +634,11 @@ class _MainPageState extends State<MainPage> {
 
   Future<void> fetchPosts() async {
     List<Post> posts = await readPost();
-    setState(() {
-      filteredPosts = Future<List<Post>>.value(posts);
-    });
+    if (mounted) {
+      setState(() {
+        filteredPosts = Future<List<Post>>.value(posts);
+      });
+    }
   }
 
   @override
@@ -834,21 +836,48 @@ class _MainPageState extends State<MainPage> {
 }
 
 // 리뷰 상세 페이지
-class ShowDetailPage extends StatelessWidget {
+class ShowDetailPage extends StatefulWidget {
   final Post post;
   final String? userid;
-  final TextEditingController _commentController = TextEditingController();
-
-  void _submitComment() {
-    // String comment = _commentController.text;
-    _commentController.clear();
-  }
 
   ShowDetailPage({required this.post, this.userid});
 
   @override
+  _ShowDetailPageState createState() => _ShowDetailPageState();
+}
+
+class _ShowDetailPageState extends State<ShowDetailPage> {
+  final TextEditingController _commentController = TextEditingController();
+  final TextEditingController _editedContentController =
+      TextEditingController();
+  Future<List<Comment>> comments = Future<List<Comment>>.value([]);
+
+  Future<void> _submitComment(postid, content, userid) async {
+    await addComment(postid, content, userid);
+    await fetchComments();
+    _commentController.clear();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchComments();
+  }
+
+  Future<void> fetchComments() async {
+    List<Comment> commentlist = await readComment();
+    if (mounted) {
+      setState(() {
+        comments = Future<List<Comment>>.value(commentlist);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    bool isCurrentUserAuthor = userid != null && post.writerid == userid!;
+    String? userid = widget.userid;
+    final post = widget.post;
+    bool isCurrentUserAuthor = userid != null && post.writerid == userid;
 
     return Scaffold(
       appBar: AppBar(
@@ -967,18 +996,172 @@ class ShowDetailPage extends StatelessWidget {
                   children: [
                     Container(
                       height: 200,
+                      width: 350,
                       decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
                           borderRadius: BorderRadius.circular(4)),
-                      child: ListView(
-                        children: [
-                          Card(
-                            child: ListTile(
-                              title: Text('댓글1'),
-                              subtitle: Text('내용1'),
-                            ),
-                          ),
-                        ],
+                      child: FutureBuilder<List<Comment>>(
+                        future: comments,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return CircularProgressIndicator();
+                          } else if (snapshot.hasError) {
+                            return Text('오류 발생: ${snapshot.error}');
+                          } else {
+                            List<Comment> allComments = snapshot.data ?? [];
+                            List<Comment> commentlist = allComments
+                                .where(
+                                    (comment) => comment.postid == post.postid)
+                                .toList();
+                            return commentlist.isEmpty
+                                ? Text('댓글이 없습니다.')
+                                : Card(
+                                    child: ListView.builder(
+                                    itemCount: commentlist.length,
+                                    itemBuilder: (context, index) {
+                                      return SizedBox(
+                                        height: 50,
+                                        child: Card(
+                                          child: InkWell(
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 5),
+                                              child: Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 50,
+                                                    height: 60,
+                                                    child: IconButton(
+                                                      onPressed: () {},
+                                                      icon: Icon(
+                                                        Icons.account_circle,
+                                                        size: 30,
+                                                      ),
+                                                      color: Color.fromRGBO(
+                                                          100, 100, 100, 1),
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 5),
+                                                  Text(commentlist[index]
+                                                      .writerid),
+                                                  Spacer(),
+                                                  Text(commentlist[index]
+                                                      .content),
+                                                  Spacer(),
+                                                  Text(
+                                                    DateFormat('MM-dd HH:mm')
+                                                        .format(
+                                                            commentlist[index]
+                                                                .createdTime),
+                                                    style: TextStyle(
+                                                      fontSize: 8,
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 5),
+                                                  commentlist[index].writerid ==
+                                                          userid
+                                                      ? PopupMenuButton<String>(
+                                                          itemBuilder:
+                                                              (BuildContext
+                                                                      context) =>
+                                                                  <PopupMenuEntry<
+                                                                      String>>[
+                                                            PopupMenuItem<
+                                                                String>(
+                                                              value: 'edit',
+                                                              child: Text('수정'),
+                                                            ),
+                                                            PopupMenuItem<
+                                                                String>(
+                                                              value: 'delete',
+                                                              child: Text('삭제'),
+                                                            ),
+                                                          ],
+                                                          onSelected: (String
+                                                              value) async {
+                                                            if (value ==
+                                                                'edit') {
+                                                              _editedContentController
+                                                                      .text =
+                                                                  commentlist[
+                                                                          index]
+                                                                      .content;
+                                                              await showDialog(
+                                                                context:
+                                                                    context,
+                                                                builder:
+                                                                    (context) =>
+                                                                        AlertDialog(
+                                                                  title: Text(
+                                                                      '댓글 수정'),
+                                                                  content:
+                                                                      TextFormField(
+                                                                    controller:
+                                                                        _editedContentController,
+                                                                    decoration:
+                                                                        InputDecoration(
+                                                                      border: InputBorder
+                                                                          .none,
+                                                                    ),
+                                                                  ),
+                                                                  actions: [
+                                                                    TextButton(
+                                                                      onPressed:
+                                                                          () {
+                                                                        Navigator.pop(
+                                                                            context);
+                                                                      },
+                                                                      child: Text(
+                                                                          '취소'),
+                                                                    ),
+                                                                    TextButton(
+                                                                      onPressed:
+                                                                          () {
+                                                                        Navigator.pop(
+                                                                            context);
+                                                                      },
+                                                                      child: Text(
+                                                                          '저장'),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              );
+
+                                                              await updateComment(
+                                                                  commentlist[
+                                                                          index]
+                                                                      .postid,
+                                                                  _editedContentController
+                                                                      .text,
+                                                                  commentlist[
+                                                                          index]
+                                                                      .commentid);
+
+                                                              await fetchComments();
+                                                            } else if (value ==
+                                                                'delete') {
+                                                              await deleteComment(
+                                                                  commentlist[
+                                                                          index]
+                                                                      .commentid);
+                                                              await fetchComments();
+                                                            }
+                                                          },
+                                                        )
+                                                      : SizedBox(width: 10),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ));
+                          }
+                        },
                       ),
                     ),
                     SizedBox(height: 10),
@@ -995,7 +1178,30 @@ class ShowDetailPage extends StatelessWidget {
                                 ),
                                 SizedBox(height: 8),
                                 ElevatedButton(
-                                  onPressed: _submitComment,
+                                  onPressed: () async {
+                                    if (_commentController.text.isEmpty) {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            title: Text('오류'),
+                                            content: Text('댓글을 입력해주세요.'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                },
+                                                child: Text('확인'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      _submitComment(post.postid,
+                                          _commentController.text, userid);
+                                    }
+                                  },
                                   child: Text('제출'),
                                 ),
                               ],
@@ -1012,15 +1218,13 @@ class ShowDetailPage extends StatelessWidget {
       floatingActionButton: isCurrentUserAuthor
           ? FloatingActionButton.extended(
               onPressed: () {
-                if (userid != null) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ShowEditPage(post: post, userid: userid),
-                    ),
-                  );
-                }
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ShowEditPage(post: post, userid: userid),
+                  ),
+                );
               },
               backgroundColor: Color.fromARGB(255, 73, 6, 218),
               label: const Text('수정'),
@@ -1275,7 +1479,7 @@ class _PostEditState extends State<ShowEditPage> {
   }
 }
 
-List<Post> posts = [];
+// 이미지 기능
 
 class Post {
   final String postid;
@@ -1311,7 +1515,7 @@ Future<void> addPost(String title, String category, String content,
     'score': score,
   };
 
-  final response = await http.post(
+  await http.post(
     Uri.parse(requestUrl),
     headers: {
       'x-api-key': apiKey,
@@ -1373,7 +1577,7 @@ Future<void> updatePost(String postid, String title, String category,
     'content': content,
     'score': score,
   };
-  final response = await http.post(
+  await http.post(
     Uri.parse(requestUrl),
     headers: {
       'x-api-key': apiKey,
@@ -1389,6 +1593,117 @@ Future<void> deletePost(postid) async {
   final Map<String, dynamic> data = {
     'method': 'delete_post',
     'post_ID': postid,
+  };
+  await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+}
+
+// 댓글 기능
+class Comment {
+  final String postid;
+  final String content;
+  final String commentid;
+  final DateTime createdTime;
+  final String writerid;
+
+  Comment({
+    required this.postid,
+    required this.content,
+    required this.commentid,
+    required this.createdTime,
+    required this.writerid,
+  });
+}
+
+Future<void> addComment(String postid, String content, String writerid) async {
+  const comment = "ReviewWeb-apigw-comment-resource";
+  const String requestUrl = '$apiUrl/$comment';
+
+  final Map<String, String> data = {
+    'method': 'create_comment',
+    'postid': postid,
+    'content': content,
+    'writerid': writerid,
+  };
+
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+  print(response.statusCode);
+}
+
+Future<List<Comment>> readComment() async {
+  const comment = "ReviewWeb-apigw-comment-resource";
+  const String requestUrl = '$apiUrl/$comment';
+
+  final Map<String, String> data = {
+    'method': 'read_comment',
+  };
+
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+  List<Comment> comments = [];
+  print(response.statusCode);
+
+  if (response.statusCode == 200) {
+    List data = json.decode(response.body);
+
+    comments = data
+        .map(
+          (item) => Comment(
+            commentid: item['comment_ID'],
+            content: item['content'],
+            postid: item['post_ID'],
+            writerid: item['writerid'],
+            createdTime: DateTime.parse(item['createdTime']),
+          ),
+        )
+        .toList();
+  }
+  return comments;
+}
+
+Future<void> updateComment(
+    String postid, String content, String commentid) async {
+  const comment = "ReviewWeb-apigw-comment-resource";
+  const String requestUrl = '$apiUrl/$comment';
+
+  final Map<String, String> data = {
+    'method': 'update_comment',
+    'content': content,
+    'comment_ID': commentid,
+  };
+  final response = await http.post(
+    Uri.parse(requestUrl),
+    headers: {
+      'x-api-key': apiKey,
+    },
+    body: json.encode(data),
+  );
+  print(response.statusCode);
+}
+
+Future<void> deleteComment(commentid) async {
+  const comment = "ReviewWeb-apigw-comment-resource";
+  const String requestUrl = '$apiUrl/$comment';
+
+  final Map<String, String> data = {
+    'method': 'delete_comment',
+    'comment_ID': commentid,
   };
   final response = await http.post(
     Uri.parse(requestUrl),

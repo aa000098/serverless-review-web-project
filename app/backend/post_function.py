@@ -76,7 +76,7 @@ def update_post(event, context):
     body = json.loads(event['body'])
 
     postid = body['post_ID']
-    update_expression = 'SET title = :new_title, category = :new_category, content =: new_content, score =: new_score'
+    update_expression = 'SET title = :new_title, category = :new_category, content =:new_content, score =:new_score'
     expression_attribute_values = {
         ':new_title': body['title'],
         ':new_category': body['category'],
@@ -124,11 +124,12 @@ def delete_post(event, context):
         }
     return {
         "statusCode" : 200,
-        "body" : json.dumps(''),
+        "body" : json.dumps('post deleted!'),
     }
 
 def lambda_handler(event, context):
     body = json.loads(event['body'])
+
     if body['method']=='create_post':
         return create_post(event,context)
     elif body['method'] == 'read_post':

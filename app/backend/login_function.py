@@ -97,7 +97,7 @@ def update_user(event,context):
         )
         return {
             'statusCode': 200,
-            'body': json.dumps(f'{entered_id} changed!'),
+            'body': json.dumps(f'{entered_id} updated!'),
         }
     else:
         return {
