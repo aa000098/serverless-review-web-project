@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-// import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
-  // dotenv.load(fileName: "app/frontend/flutter_application_1/assets/config/.env");
+Future<void> main() async {
+  await dotenv.load(fileName: "assets/config/.env");
   runApp(ReviewApp());
 }
 
@@ -45,16 +46,14 @@ class LoginForm extends StatefulWidget {
   _LoginFormState createState() => _LoginFormState();
 }
 
-const apiUrl =
-    "https://gkeqjfyqub.execute-api.ap-northeast-2.amazonaws.com/dev";
-const apiKey = "MekCH2VUuz7PmvsDURiXE5ar5wGJHz9a3v1XdgSH";
+final apiUrl = dotenv.env['API_URL'];
+final apiKey = dotenv.env['API_KEY'];
+final apilogin = dotenv.env['API_LOGIN'];
+final apipost = dotenv.env['API_POST'];
+final apicomment = dotenv.env['API_COMMENT'];
 
 class _LoginFormState extends State<LoginForm> {
-  //final String apiUrl = dotenv.env['API_URL']!;
-  //final String apiKey = dotenv.env['API_KEY']!;
-  //final String login = dotenv.env['API_LOGIN']!;
-  static const login = "ReviewWeb-apigw-login-resource";
-  static const String requestUrl = '$apiUrl/$login';
+  final String loginRequestUrl = '$apiUrl/$apilogin';
 
   Future<bool> _isCreateUserSuccess(entered_id, entered_pw) async {
     final Map<String, String> data = {
@@ -64,9 +63,9 @@ class _LoginFormState extends State<LoginForm> {
     };
 
     final response = await http.post(
-      Uri.parse(requestUrl),
+      Uri.parse(loginRequestUrl),
       headers: {
-        'x-api-key': apiKey,
+        'x-api-key': apiKey!,
       },
       body: json.encode(data),
     );
@@ -202,9 +201,9 @@ class _LoginFormState extends State<LoginForm> {
     };
 
     final response = await http.post(
-      Uri.parse(requestUrl),
+      Uri.parse(loginRequestUrl),
       headers: {
-        'x-api-key': apiKey,
+        'x-api-key': apiKey!,
       },
       body: json.encode(data),
     );
@@ -495,7 +494,8 @@ class _PostReviewState extends State<ShowWritingPage> {
                     },
                   );
                 } else {
-                  addPost(title, category, content, userID, score);
+                  addPost(
+                      title, category, content, userID, score, _selectedImage);
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -1501,41 +1501,40 @@ class Post {
   });
 }
 
+final postRequestUrl = '$apiUrl/$apipost';
+
 Future<void> addPost(String title, String category, String content,
-    String writerid, int score) async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
+    String writerid, int score, List<XFile> images) async {
+  final request = http.MultipartRequest('POST', Uri.parse(postRequestUrl));
+  request.headers['x-api-key'] = apiKey!;
 
-  final Map<String, dynamic> data = {
-    'method': 'create_post',
-    'title': title,
-    'category': category,
-    'content': content,
-    'writerid': writerid,
-    'score': score,
-  };
+  request.fields['method'] = 'create_post';
+  request.fields['title'] = title;
+  request.fields['category'] = category;
+  request.fields['content'] = content;
+  request.fields['writerid'] = writerid;
+  request.fields['score'] = score.toString();
 
-  await http.post(
-    Uri.parse(requestUrl),
-    headers: {
-      'x-api-key': apiKey,
-    },
-    body: json.encode(data),
-  );
+  for (int i = 0; i < images.length; i++) {
+    XFile imageFile = images[i];
+    http.MultipartFile multipartFile = await http.MultipartFile.fromPath(
+      'image$i',
+      imageFile.path,
+      contentType: MediaType('image', 'jpeg'),
+    );
+    request.files.add(multipartFile);
+  }
 }
 
 Future<List<Post>> readPost() async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
-
   final Map<String, String> data = {
     'method': 'read_post',
   };
 
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
@@ -1566,9 +1565,6 @@ Future<Post> getPost(String postid) async {
 
 Future<void> updatePost(String postid, String title, String category,
     String content, int score) async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
-
   final Map<String, dynamic> data = {
     'method': 'update_post',
     'post_ID': postid,
@@ -1578,26 +1574,23 @@ Future<void> updatePost(String postid, String title, String category,
     'score': score,
   };
   await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
 }
 
 Future<void> deletePost(postid) async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
-
   final Map<String, dynamic> data = {
     'method': 'delete_post',
     'post_ID': postid,
   };
   await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
@@ -1621,9 +1614,6 @@ class Comment {
 }
 
 Future<void> addComment(String postid, String content, String writerid) async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
-
   final Map<String, String> data = {
     'method': 'create_comment',
     'postid': postid,
@@ -1632,27 +1622,26 @@ Future<void> addComment(String postid, String content, String writerid) async {
   };
 
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
   print(response.statusCode);
 }
 
-Future<List<Comment>> readComment() async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
+final commentRequestUrl = '$apiUrl/$apicomment';
 
+Future<List<Comment>> readComment() async {
   final Map<String, String> data = {
     'method': 'read_comment',
   };
 
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(commentRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
@@ -1679,18 +1668,15 @@ Future<List<Comment>> readComment() async {
 
 Future<void> updateComment(
     String postid, String content, String commentid) async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
-
   final Map<String, String> data = {
     'method': 'update_comment',
     'content': content,
     'comment_ID': commentid,
   };
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(commentRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
@@ -1698,17 +1684,14 @@ Future<void> updateComment(
 }
 
 Future<void> deleteComment(commentid) async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
-
   final Map<String, String> data = {
     'method': 'delete_comment',
     'comment_ID': commentid,
   };
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(commentRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
