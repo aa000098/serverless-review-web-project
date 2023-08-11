@@ -64,7 +64,7 @@ export class ReviewWebApigatewayStack extends cdk.Stack {
             const login_resource = api.root.addResource(`${SYSTEM_NAME}-apigw-login-resource`);
             login_resource.addMethod('GET', login_integration, methodOpthis);
             login_resource.addMethod('POST', login_integration, methodOpthis);
-            login_resource.addMethod('PUT', login_integration, methodOpthis);
+            login_resource.addMethod('PATCH', login_integration, methodOpthis);
             login_resource.addMethod('DELETE', login_integration, methodOpthis);
         }
 
@@ -73,7 +73,7 @@ export class ReviewWebApigatewayStack extends cdk.Stack {
             const post_resource = api.root.addResource(`${SYSTEM_NAME}-apigw-post-resource`);
             post_resource.addMethod('GET', post_integration, methodOpthis);
             post_resource.addMethod('POST', post_integration, methodOpthis);
-            post_resource.addMethod('PUT', post_integration, methodOpthis);
+            post_resource.addMethod('PATCH', post_integration, methodOpthis);
             post_resource.addMethod('DELETE', post_integration, methodOpthis);
         }
 
@@ -82,7 +82,7 @@ export class ReviewWebApigatewayStack extends cdk.Stack {
             const comment_resource = api.root.addResource(`${SYSTEM_NAME}-apigw-comment-resource`);
             comment_resource.addMethod('GET', comment_integration, methodOpthis);
             comment_resource.addMethod('POST', comment_integration, methodOpthis);
-            comment_resource.addMethod('PUT', comment_integration, methodOpthis);
+            comment_resource.addMethod('PATCH', comment_integration, methodOpthis);
             comment_resource.addMethod('DELETE', comment_integration, methodOpthis);
         }
     }

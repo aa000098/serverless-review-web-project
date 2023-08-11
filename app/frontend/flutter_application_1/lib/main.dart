@@ -767,8 +767,14 @@ class _MainPageState extends State<MainPage> {
                                       width: 150,
                                       height: 150,
                                       child: Card(
-                                        color: Colors.grey,
-                                      ),
+                                          child: posts[index].imagefiles.isEmpty
+                                              ? Container(
+                                                  color: Colors.grey,
+                                                )
+                                              : Image.network(
+                                                  posts[index].imagefiles[0],
+                                                  fit: BoxFit.cover,
+                                                )),
                                     ),
                                     SizedBox(width: 15),
                                     Padding(
@@ -940,8 +946,15 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
                     height: 300,
                     width: 400,
                     child: Card(
-                        // 사진 불러오기
-                        ),
+                      child: post.imagefiles.isEmpty
+                          ? Container(
+                              color: Colors.grey,
+                            )
+                          : Image.network(
+                              post.imagefiles[0],
+                              fit: BoxFit.cover,
+                            ),
+                    ),
                   ),
                 ],
               ),
@@ -1278,6 +1291,7 @@ class _PostEditState extends State<ShowEditPage> {
     String title = _titleController.text;
     String? category = _selectedCategory;
     String content = _contentController.text;
+    List<dynamic> imagefiles = widget.post.imagefiles;
 
     List<Widget> _boxContents = [
       IconButton(
@@ -1357,8 +1371,14 @@ class _PostEditState extends State<ShowEditPage> {
                     },
                   );
                 } else {
-                  updatePost(postid, _titleController.text, _selectedCategory!,
-                      _contentController.text, _rating);
+                  updatePost(
+                      postid,
+                      _titleController.text,
+                      _selectedCategory!,
+                      _contentController.text,
+                      _rating,
+                      imagefiles,
+                      _selectedImage);
                   getPost(postid).then((updatedPost) {
                     Navigator.pushReplacement(
                       context,
@@ -1489,6 +1509,7 @@ class Post {
   final int score;
   final String category;
   final DateTime createdTime;
+  final List<dynamic> imagefiles;
 
   Post({
     required this.postid,
@@ -1498,17 +1519,17 @@ class Post {
     required this.writerid,
     required this.score,
     required this.createdTime,
+    required this.imagefiles,
   });
 }
 
 final postRequestUrl = '$apiUrl/$apipost';
-
+// 게시글 쓰는 함수
 Future<void> addPost(String title, String category, String content,
     String writerid, int score, List<XFile> images) async {
   final request = http.MultipartRequest('POST', Uri.parse(postRequestUrl));
   request.headers['x-api-key'] = apiKey!;
 
-  request.fields['method'] = 'create_post';
   request.fields['title'] = title;
   request.fields['category'] = category;
   request.fields['content'] = content;
@@ -1524,19 +1545,20 @@ Future<void> addPost(String title, String category, String content,
     );
     request.files.add(multipartFile);
   }
+
+  final response = await request.send();
+  print(response.statusCode);
+  final responseString = await response.stream.bytesToString();
+  print(responseString);
 }
 
+// 게시글 읽는 함수
 Future<List<Post>> readPost() async {
-  final Map<String, String> data = {
-    'method': 'read_post',
-  };
-
-  final response = await http.post(
+  final response = await http.get(
     Uri.parse(postRequestUrl),
     headers: {
       'x-api-key': apiKey!,
     },
-    body: json.encode(data),
   );
   List<Post> posts = [];
 
@@ -1552,9 +1574,11 @@ Future<List<Post>> readPost() async {
               writerid: item['writerid'],
               score: item['score'].toInt(),
               createdTime: DateTime.parse(item['createdTime']),
+              imagefiles: item['image_files'],
             ))
         .toList();
   }
+  print(response.statusCode);
   return posts;
 }
 
@@ -1563,37 +1587,54 @@ Future<Post> getPost(String postid) async {
   return postlist.firstWhere((post) => post.postid == postid);
 }
 
-Future<void> updatePost(String postid, String title, String category,
-    String content, int score) async {
-  final Map<String, dynamic> data = {
-    'method': 'update_post',
-    'post_ID': postid,
-    'title': title,
-    'category': category,
-    'content': content,
-    'score': score,
-  };
-  await http.post(
-    Uri.parse(postRequestUrl),
-    headers: {
-      'x-api-key': apiKey!,
-    },
-    body: json.encode(data),
-  );
+Future<void> updatePost(
+    String postid,
+    String title,
+    String category,
+    String content,
+    int score,
+    List<dynamic> imagefiles,
+    List<XFile> images) async {
+  final request = http.MultipartRequest('PATCH', Uri.parse(postRequestUrl));
+  request.headers['x-api-key'] = apiKey!;
+
+  request.fields['post_ID'] = postid;
+  request.fields['title'] = title;
+  request.fields['category'] = category;
+  request.fields['content'] = content;
+  request.fields['score'] = score.toString();
+  String imageFilesAsString = imagefiles.join(',');
+  request.fields['imagefiles'] = imageFilesAsString;
+
+  for (int i = 0; i < images.length; i++) {
+    XFile imageFile = images[i];
+    http.MultipartFile multipartFile = await http.MultipartFile.fromPath(
+      'image$i',
+      imageFile.path,
+      contentType: MediaType('image', 'jpeg'),
+    );
+    request.files.add(multipartFile);
+  }
+  final response = await request.send();
+  print(response.statusCode);
+  final responseString = await response.stream.bytesToString();
+  print(responseString);
 }
 
 Future<void> deletePost(postid) async {
   final Map<String, dynamic> data = {
-    'method': 'delete_post',
     'post_ID': postid,
   };
-  await http.post(
+  final response = await http.delete(
     Uri.parse(postRequestUrl),
     headers: {
       'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
+
+  print(response.statusCode);
+  print(response.body);
 }
 
 // 댓글 기능

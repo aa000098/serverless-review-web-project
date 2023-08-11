@@ -13,8 +13,8 @@ export class ReviewWebS3Stack extends cdk.Stack {
 
         const bucket = new s3.Bucket(this, `${SYSTEM_NAME}-S3`, {
             bucketName: `${getAccountUniqueName(props.context)}-reviewweb-bucket`.toLowerCase(),
-            publicReadAccess: false,
-            blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+            publicReadAccess: true,
+            blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
             encryption: s3.BucketEncryption.S3_MANAGED,
         });
 
