@@ -9,8 +9,9 @@ def create_comment(event, context):
     session = boto3.Session()
     dynamodb = session.resource('dynamodb')
     comment_table = dynamodb.Table(os.getenv("COMMENT_TABLE_NAME"))
-    body = json.loads(event['body'])
     
+    body = json.loads(event['body'])
+
     commentid = str(uuid.uuid4())
     postid = body['postid']
     content = body['content']
@@ -41,7 +42,6 @@ def read_comment(event, context):
     session = boto3.Session()
     dynamodb = session.resource('dynamodb')
     comment_table = dynamodb.Table(os.getenv("COMMENT_TABLE_NAME"))
-    body = json.loads(event['body'])
     
     try:
         response = comment_table.scan()
@@ -121,14 +121,14 @@ def delete_comment(event, context):
     }
 
 def lambda_handler(event, context):
-    body = json.loads(event['body'])
-    if body['method']=='create_comment':
+    http_method = event['httpMethod']
+    if http_method =='POST':
         return create_comment(event,context)
-    elif body['method'] == 'read_comment':
+    elif http_method == 'GET':
         return read_comment(event, context)
-    elif body['method'] == 'update_comment':
+    elif http_method == 'PATCH':
         return update_comment(event, context)
-    elif body['method']=='delete_comment':
+    elif http_method =='DELETE':
         return delete_comment(event, context)
     else:
         return {

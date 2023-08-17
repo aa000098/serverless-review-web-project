@@ -30,6 +30,7 @@ export class ReviewWebApigatewayStack extends cdk.Stack {
             endpointTypes: [EndpointType.REGIONAL],
             retainDeployments: props.terminationProtection,
             cloudWatchRole: true,
+            binaryMediaTypes: ['multipart/form-data'],
         });
 
         const apiKey = api.addApiKey(`${SYSTEM_NAME}-ApiKey`, {

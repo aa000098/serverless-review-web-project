@@ -4,61 +4,60 @@ import os
 import uuid
 import datetime
 import io
+import base64
+import cgi
 from botocore.exceptions import ClientError
-from email import message_from_bytes
+
+def get_file_from_request_body(headers: dict, body):
+    fp = io.BytesIO(base64.b64decode(body)) # decode
+    environ = {"REQUEST_METHOD": "POST"}
+    content_len = headers["content-length"] if "content-length" in headers else len(body)
+    headers = {
+        "content-type": headers["content-type"],
+        "content-length": content_len,
+    }
+
+    fs = cgi.FieldStorage(fp=fp, environ=environ, headers=headers)
+
+    return fs
 
 
 def create_post(event, context):
     session = boto3.Session()
     dynamodb = session.resource('dynamodb')
-    s3 = session.client('s3')
+    s3 = session.resource('s3')
     bucket_name = os.getenv("BUCKET_NAME")
     post_table = dynamodb.Table(os.getenv("POST_TABLE_NAME"))
     postid = str(uuid.uuid4())
     
-    content_type = event['headers']['content-type']
-    boundary = content_type.split('; ')[1].split('=')[1]
-    body = event['body'].strip()
-
-    parts = body.split('--' + boundary)
-    fields = {}
+    headers = {k.lower(): v for k, v in event["headers"].items()}
+    form_data = get_file_from_request_body(
+        headers=headers, body=event["body"]
+    )
+    
+    data = {}
     image_files = []
-    parts = parts[1:]
-    for part in parts:
-        if part.strip() == '--':
-            break
-        if 'filename' not in part:
-            lines = part.strip().split('\r\n\r\n')
-            field_name = lines[0].split('; ')[1].split('=')[1].strip('"')
-            if 'category' in field_name:
-                field_name = field_name.split('"')[0]
-            field_value = lines[1]
-            fields[field_name] = field_value
-        else :
-            lines = part.strip().split('\r\n\r\n')
-            file_name = lines[0].split('; ')[1].split('=')[1].strip('"')
-            content= lines[1]
-            image_data = content.encode('utf-8')
-            image_key = f'images/{postid}-{file_name}'
-            
-            s3.upload_fileobj(
-                io.BytesIO(image_data),
-                bucket_name,
-                image_key,
-                ExtraArgs={
-                    'ContentType': 'image/jpeg',
-                }
-            )
+    
+    for key in form_data.keys():
+
+        if form_data[key].filename: # file -> save
+            image_key = f'images/{postid}-{form_data[key].name}'
+            s3_obj = s3.Object(os.getenv("BUCKET_NAME"), image_key)
+            s3_obj.put(Body=form_data[key].value, ContentType='image/jpeg',)
             image_url = f'https://{bucket_name}.s3.amazonaws.com/{image_key}'
             image_files.append(image_url)
+            data['image_files'] = image_files
+        else:
+            value = form_data[key].value
+            data[key] = value
 
-    title = fields['title']
-    category = fields['category']
-    content = fields['content']
-    writerid = fields['writerid']
-    score = fields['score']
+    title = data['title']
+    category = data['category']
+    content = data['content']
+    writerid = data['writerid']
+    score = data['score']
     createdTime = datetime.datetime.now().isoformat()
-
+    
     item = {
         'post_ID': postid,
         'title': title,
@@ -112,66 +111,42 @@ def read_post(event, context):
 def update_post(event, context):
     session = boto3.Session()
     dynamodb = session.resource('dynamodb')
-    s3 = session.client('s3')
+    s3 = session.resource('s3')
     bucket_name = os.getenv("BUCKET_NAME")
     post_table = dynamodb.Table(os.getenv("POST_TABLE_NAME"))
 
-    # 이벤트 추출
-    content_type = event['headers']['content-type']
-    boundary = content_type.split('; ')[1].split('=')[1]
-    body = event['body'].strip()
-    
-    parts = body.split('--' + boundary)
-    fields = {}
+    headers = {k.lower(): v for k, v in event["headers"].items()}
+    form_data = get_file_from_request_body(
+        headers=headers, body=event["body"]
+    )
+
+    data = {}
     image_files = []
-    parts = parts[1:]
-
-    for part in parts:
-        if part.strip() == '--':
-            break
-        if 'filename' not in part:
-            lines = part.strip().split('\r\n\r\n')
-            field_name = lines[0].split('; ')[1].split('=')[1].strip('"')
-            if 'category' in field_name or 'imagefiles' in field_name:
-                field_name = field_name.split('"')[0]
-            if len(lines) > 1:
-                field_value = lines[1]
-            else:
-                field_value = None
-            fields[field_name] = field_value
-            # 기존 이미지 삭제
-            if field_name == 'imagefiles' and field_value != None:
-                image_urls = field_value.split(',')
-                for image_url in image_urls:
-                    file_key = image_url.split('/')[3] + '/' + image_url.split('/')[4]
-                    s3.delete_object(Bucket=bucket_name, Key=file_key)
-                
-        # 새 이미지 업로드
-        else :
-            postid = fields['post_ID']
-            lines = part.strip().split('\r\n\r\n')
-            file_name = lines[0].split('; ')[1].split('=')[1].strip('"')
-            content= lines[1]
-            
-            image_data = content.encode('utf-8')
-            image_key = f'images/{postid}-{file_name}'
-
-            s3.upload_fileobj(
-                io.BytesIO(image_data),
-                bucket_name,
-                image_key,
-                ExtraArgs={
-                    'ContentType': 'image/jpeg',
-                }
-            )
+    postid = form_data.getfirst("post_ID")
+    for key in form_data.keys():
+        # 기존 이미지 삭제
+        if key == 'imagefiles' and form_data[key] != None:
+            image_urls = form_data[key].value.split(',')
+            for image_url in image_urls:
+                file_key = image_url.split('/')[3] + '/' + image_url.split('/')[4]
+                s3_obj = s3.Object(bucket_name, file_key)
+                s3_obj.delete()
+        # 새 이미지 삽입
+        elif form_data[key].filename:
+            image_key = f'images/{postid}-{form_data[key].name}'
+            s3_obj = s3.Object(os.getenv("BUCKET_NAME"), image_key)
+            s3_obj.put(Body=form_data[key].value, ContentType='image/jpeg',)
             image_url = f'https://{bucket_name}.s3.amazonaws.com/{image_key}'
             image_files.append(image_url)
+            data['image_files'] = image_files
+        else:
+            value = form_data[key].value
+            data[key] = value
     
-    postid = fields['post_ID']
-    title = fields['title']
-    category = fields['category']
-    content = fields['content']
-    score = fields['score']
+    title = data['title']
+    category = data['category']
+    content = data['content']
+    score = data['score']
     
     update_expression = 'SET title = :new_title, category = :new_category, content =:new_content, score =:new_score, image_files =:new_image_files'
     expression_attribute_values = {
