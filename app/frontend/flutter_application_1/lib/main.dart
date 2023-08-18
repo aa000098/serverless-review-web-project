@@ -1038,108 +1038,102 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 500,
-                    child: Text(
-                      post.title,
-                      style: TextStyle(
-                        fontSize: 40,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+              SizedBox(
+                width: 500,
+                child: Text(
+                  post.title,
+                  style: TextStyle(
+                    fontSize: 40,
                   ),
-                  SizedBox(height: 20),
-                  post.imagefiles.isEmpty
-                      ? SizedBox(
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(height: 20),
+              post.imagefiles.isEmpty
+                  ? SizedBox(
+                      height: 300,
+                      width: 400,
+                      child: Container(
+                        color: Colors.grey,
+                        child: Center(
+                          child: Text('사진이 없습니다.'),
+                        ),
+                      ),
+                    )
+                  : Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        SizedBox(
                           height: 300,
                           width: 400,
-                          child: Container(
-                            color: Colors.grey,
-                            child: Center(
-                              child: Text('사진이 없습니다.'),
+                          child: GestureDetector(
+                            onHorizontalDragEnd: (details) {
+                              if (details.velocity.pixelsPerSecond.dx < 0) {
+                                if (_currentPage < post.imagefiles.length - 1) {
+                                  setState(() {
+                                    _currentPage += 1;
+                                  });
+                                }
+                              } else if (details.velocity.pixelsPerSecond.dx >
+                                  0) {
+                                if (_currentPage > 0) {
+                                  setState(() {
+                                    _currentPage -= 1;
+                                  });
+                                }
+                              }
+                            },
+                            child: Image.network(
+                              post.imagefiles[_currentPage],
+                              fit: BoxFit.cover,
                             ),
                           ),
-                        )
-                      : Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            SizedBox(
-                              height: 300,
-                              width: 400,
-                              child: PageView.builder(
-                                itemCount: post.imagefiles.length,
-                                onPageChanged: (index) {
-                                  setState(
-                                    () {
-                                      _currentPage = index;
-                                    },
-                                  );
-                                },
-                                itemBuilder: (context, index) {
-                                  return SizedBox(
-                                    child: Image.network(
-                                      post.imagefiles[index],
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (BuildContext context,
-                                          Object exception,
-                                          StackTrace? stackTrace) {
-                                        return Text('no image');
-                                      },
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 5, horizontal: 10),
-                              margin: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(500)),
-                              child: Text(
-                                '${_currentPage + 1}/${post.imagefiles.length}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(
-                                  post.imagefiles.length,
-                                  (index) {
-                                    return Container(
-                                      width: 8.0,
-                                      height: 8.0,
-                                      margin: const EdgeInsets.symmetric(
-                                        vertical: 10.0,
-                                        horizontal: 5.0,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _currentPage == index
-                                            ? Colors.black //Colors.white
-                                            : Colors.grey.withOpacity(
-                                                0.4), //Colors.white.withOpacity(0.4),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
-                ],
-              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 5, horizontal: 10),
+                          margin: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(500)),
+                          child: Text(
+                            '${_currentPage + 1}/${post.imagefiles.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              post.imagefiles.length,
+                              (index) {
+                                return Container(
+                                  width: 8.0,
+                                  height: 8.0,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 10.0,
+                                    horizontal: 5.0,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _currentPage == index
+                                        ? Colors.black //Colors.white
+                                        : Colors.grey.withOpacity(
+                                            0.4), //Colors.white.withOpacity(0.4),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
               SizedBox(height: 15),
               Card(
                 shape: RoundedRectangleBorder(
