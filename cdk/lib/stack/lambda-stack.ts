@@ -41,6 +41,7 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             role: lambdaRole,
             environment: {
                 'USER_TABLE_NAME': props.dynamoDBStack!.UserTable.tableName,
+                'TZ': 'Asia/Seoul',
             },
         });
 
@@ -54,7 +55,8 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             role: lambdaRole,
             environment: {
                 'POST_TABLE_NAME': props.dynamoDBStack!.PostTable.tableName,
-                'BUCKET_NAME': props.s3Stack!.bucket.bucketName
+                'BUCKET_NAME': props.s3Stack!.bucket.bucketName,
+                'TZ': 'Asia/Seoul',
             },
         });
 
@@ -67,6 +69,7 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             role: lambdaRole,
             environment: {
                 'COMMENT_TABLE_NAME': props.dynamoDBStack!.CommentTable.tableName,
+                'TZ': 'Asia/Seoul',
             },
         });
     }

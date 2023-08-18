@@ -32,7 +32,26 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Login'),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainPage(),
+              ),
+            );
+          },
+          icon: Icon(
+            Icons.arrow_back,
+            size: 30,
+          ),
+        ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('로그인'),
+          ],
+        ),
       ),
       body: Center(
         child: LoginForm(),
@@ -248,7 +267,7 @@ class _LoginFormState extends State<LoginForm> {
               controller: _emailController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'Email',
+                labelText: 'ID',
               ),
             ),
           ),
@@ -494,13 +513,17 @@ class _PostReviewState extends State<ShowWritingPage> {
                     },
                   );
                 } else {
-                  addPost(
-                      title, category, content, userID, score, _selectedImage);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MainPage(userid: widget.userid),
-                    ),
+                  addPost(title, category, content, userID, score,
+                          _selectedImage)
+                      .then(
+                    (_) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MainPage(userid: widget.userid),
+                        ),
+                      );
+                    },
                   );
                 }
               },
@@ -804,7 +827,9 @@ class _MainPageState extends State<MainPage> {
             } else {
               List<Post> posts = snapshot.data ?? [];
               return posts.isEmpty
-                  ? Text('게시물이 없습니다.')
+                  ? Center(
+                      child: Text('게시물이 없습니다.'),
+                    )
                   : ListView.builder(
                       itemCount: posts.length,
                       itemBuilder: (context, index) {
@@ -930,7 +955,7 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _editedContentController =
       TextEditingController();
-  final PageController _pageController = PageController(initialPage: 0);
+  int _currentPage = 0;
   Future<List<Comment>> comments = Future<List<Comment>>.value([]);
 
   Future<void> _submitComment(postid, content, userid) async {
@@ -976,19 +1001,25 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
             size: 30,
           ),
         ),
-        title: Text('게시물 상세'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('게시물 상세'),
+          ],
+        ),
         actions: [
           isCurrentUserAuthor
               ? PopupMenuButton(
                   onSelected: (value) {
                     if (value == 'delete') {
-                      deletePost(post.postid);
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MainPage(userid: userid),
-                        ),
-                      );
+                      deletePost(post.postid).then((_) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MainPage(userid: userid),
+                          ),
+                        );
+                      });
                     }
                   },
                   itemBuilder: (BuildContext context) => [
@@ -1010,33 +1041,103 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    post.title,
-                    style: TextStyle(
-                      fontSize: 40,
+                  SizedBox(
+                    width: 500,
+                    child: Text(
+                      post.title,
+                      style: TextStyle(
+                        fontSize: 40,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   SizedBox(height: 20),
-                  SizedBox(
-                    height: 300,
-                    width: 400,
-                    child: PageView.builder(
-                      itemCount: post.imagefiles.length,
-                      controller: _pageController,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          child: post.imagefiles.isEmpty
-                              ? Container(
-                                  color: Colors.grey,
-                                )
-                              : Image.network(
-                                  post.imagefiles[index],
-                                  fit: BoxFit.cover,
+                  post.imagefiles.isEmpty
+                      ? SizedBox(
+                          height: 300,
+                          width: 400,
+                          child: Container(
+                            color: Colors.grey,
+                            child: Center(
+                              child: Text('사진이 없습니다.'),
+                            ),
+                          ),
+                        )
+                      : Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            SizedBox(
+                              height: 300,
+                              width: 400,
+                              child: PageView.builder(
+                                itemCount: post.imagefiles.length,
+                                onPageChanged: (index) {
+                                  setState(
+                                    () {
+                                      _currentPage = index;
+                                    },
+                                  );
+                                },
+                                itemBuilder: (context, index) {
+                                  return SizedBox(
+                                    child: Image.network(
+                                      post.imagefiles[index],
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (BuildContext context,
+                                          Object exception,
+                                          StackTrace? stackTrace) {
+                                        return Text('no image');
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 5, horizontal: 10),
+                              margin: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(500)),
+                              child: Text(
+                                '${_currentPage + 1}/${post.imagefiles.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
                                 ),
-                        );
-                      },
-                    ),
-                  ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(
+                                  post.imagefiles.length,
+                                  (index) {
+                                    return Container(
+                                      width: 8.0,
+                                      height: 8.0,
+                                      margin: const EdgeInsets.symmetric(
+                                        vertical: 10.0,
+                                        horizontal: 5.0,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _currentPage == index
+                                            ? Colors.black //Colors.white
+                                            : Colors.grey.withOpacity(
+                                                0.4), //Colors.white.withOpacity(0.4),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ],
               ),
               SizedBox(height: 15),
@@ -1238,9 +1339,7 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
                                                                                     ],
                                                                                   ),
                                                                                 );
-
                                                                                 await updateComment(commentlist[index].postid, _editedContentController.text, commentlist[index].commentid);
-
                                                                                 await fetchComments();
                                                                               } else if (value == 'delete') {
                                                                                 await deleteComment(commentlist[index].commentid);
@@ -1452,7 +1551,7 @@ class _PostEditState extends State<ShowEditPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('리뷰쓰기'),
+            Text('리뷰 수정'),
           ],
         ),
         actions: [
