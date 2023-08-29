@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { Account } from './config/accounts';
 import { SYSTEM_NAME } from './config/common';
 import { ReviewWebApigatewayStack } from './stack/apigateway-stack';
+import { ReviewWebCognitoStack } from './stack/cognito-stack';
 import { ReviewWebDynamoDBStack } from './stack/dynamodb-stack';
 import { ReviewWebLambdaStack } from './stack/lambda-stack';
 import { ReviewWebS3Stack } from './stack/s3-stack';
@@ -14,6 +15,7 @@ export interface ReviewWebStackProps extends cdk.StackProps {
   dynamoDBStack?: ReviewWebDynamoDBStack
   apiGatewayStack?: ReviewWebApigatewayStack
   lambdaStack?: ReviewWebLambdaStack
+  cognitoStack?: ReviewWebCognitoStack
 }
 
 export class ReviewWebStack extends cdk.Stack {
@@ -31,6 +33,7 @@ export class ReviewWebStack extends cdk.Stack {
     const apiGatewayStack = new ReviewWebApigatewayStack(this, `${SYSTEM_NAME}-apigatewayStack`, props);
     props.apiGatewayStack = apiGatewayStack;
 
-
+    const cognitoStack = new ReviewWebCognitoStack(this, `${SYSTEM_NAME}-cognitoStack`, props);
+    props.cognitoStack = cognitoStack;
   }
 }
