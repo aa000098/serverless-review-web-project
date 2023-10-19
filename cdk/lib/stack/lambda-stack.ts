@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib'
 import { CompositePrincipal, ManagedPolicy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs'
-import { getAccountUniqueName } from '../config/accounts';
+import { Accounts, getAccountUniqueName } from '../config/accounts';
 import { SYSTEM_NAME } from '../config/common';
 import { ReviewWebStackProps } from '../reviewweb-stack';
 import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
@@ -42,6 +42,9 @@ export class ReviewWebLambdaStack extends cdk.Stack {
             environment: {
                 'USER_TABLE_NAME': props.dynamoDBStack!.UserTable.tableName,
                 'TZ': 'Asia/Seoul',
+                'AWS_REGION': Accounts[0].region,
+                'AWS_USERPOOL_ID': props.cognitoStack!.userPool.userPoolId,
+                'AWS_CLIENT_ID': props.cognitoStack!.userPoolClient.userPoolClientId,
             },
         });
 

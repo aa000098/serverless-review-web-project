@@ -4,102 +4,74 @@ import os
 
 def create_user(event, context):
     session = boto3.Session()
-    dynamodb = session.resource('dynamodb')
-    user_table = dynamodb.Table(os.getenv("USER_TABLE_NAME"))
+    cognito_client = session.client('cognito-idp', region_name=os.getenv("AWS_REGION"))
+    
     body = json.loads(event['body'])
-
     entered_id = body['entered_id']
     entered_pw = body['entered_pw']
-    
-    response = user_table.get_item(
-        Key={
-            'user_ID': entered_id
-        }
-    )
 
-    if 'Item' in response:
-        return {
-            'statusCode': 400,
-            'body': json.dumps(f'{entered_id} already exists!')
-        }
-    else:
-        user_table.put_item(
-            Item={
-                'user_ID' : entered_id,
-                'user_PW' : entered_pw,
-            }
+    try:
+        response = cognito_client.sign_up(
+            ClientId = os.getenv("AWS_CLIENT_ID"),
+            Username = entered_id,
+            Password = entered_pw,
         )
         return {
             'statusCode': 200,
             'body': json.dumps(f'{entered_id} saved!'),
         }
-
+    except:
+        return {
+            'statusCode': 400,
+            'body': json.dumps(f'{entered_id} already exists!')
+        }
 
 def read_user(event,context):
     session = boto3.Session()
-    dynamodb = session.resource('dynamodb')
-    user_table = dynamodb.Table(os.getenv("USER_TABLE_NAME"))
-    body = json.loads(event['body'])
+    cognito_client = session.client('cognito-idp', region_name=os.getenv("AWS_REGION"))
 
+    body = json.loads(event['body'])
     entered_id = body['entered_id']
     entered_pw = body['entered_pw']
 
-    response = user_table.get_item(
-        Key={
-            'user_ID': entered_id
+    try:
+        response = cognito_client.initiate_auth(
+            ClientId = os.getenv("AWS_CLIENT_ID"),
+            AuthFlow = 'USER_PASSWORD_AUTH',
+            AuthParameters = {
+                'USERNAME' : entered_id,
+                'PASSWORD' : entered_pw,
+            },
+        )
+        access_token = response['AuthenticateionResult']['AccessToken']
+        return {
+            'statusCode': 200,
+            'body': json.dumps(access_token),
         }
-    )
-
-    if 'Item' in response:
-        pw = response['Item']['user_PW']
-        if entered_pw == pw:
-            return {
-                'statusCode': 200,
-                'body': json.dumps(f'{entered_id} match!'),
-            }
-        else:
-            return {
-                'statusCode' : 401,
-                'body' : json.dumps(f'{entered_id} mismatch!')
-            }
-    else:
+    except:
         return {
             'statusCode': 404,
-            'body': json.dumps(f'{entered_id} not exist!')
+            'body': json.dumps(f'{entered_id} is wrong!')
         }
 
 def update_user(event,context):
     session = boto3.Session()
-    dynamodb = session.resource('dynamodb')
-    user_table = dynamodb.Table(os.getenv("USER_TABLE_NAME"))
-    body = json.loads(event['body'])
+    cognito_client = session.client('cognito-idp', region_name=os.getenv("AWS_REGION"))
 
+    body = json.loads(event['body'])
     entered_id = body['entered_id']
     new_pw = body['entered_pw']
-
-    response = user_table.get_item(
-        Key={
-            'user_ID': entered_id
-        }
-    )
-    
-    if 'Item' in response:
-
-        update_expression = 'SET user_PW = :new_pw'
-        expression_attribute_values = {':new_pw': new_pw}
-
-        user_table.update_item(
-            Key={
-                'user_ID' : entered_id
-            },
-            UpdateExpression = update_expression,
-            expression_attribute_values= expression_attribute_values
+    try:
+        response = cognito_client.admin_update_user_password(
+            UserPoolId = os.getenv("AWS_USERPOOL_ID"),
+            Username = entered_id,
+            Password = new_pw,
         )
         return {
             'statusCode': 200,
             'body': json.dumps(f'{entered_id} updated!'),
         }
-    else:
+    except:
         return {
             'statusCode': 404,
             'body': json.dumps(f'{entered_id} not exist!')
@@ -107,29 +79,25 @@ def update_user(event,context):
 
 def delete_user(event, context):
     session = boto3.Session()
-    dynamodb = session.resource('dynamodb')
-    user_table = dynamodb.Table(os.getenv("USER_TABLE_NAME"))
+    cognito_client = session.client('cognito-idp', region_name=os.getenv("AWS_REGION"))
     body = json.loads(event['body'])
 
     entered_id = body['entered_id']
 
-    response = user_table.get_item(
-        Key={
-            'user_ID': entered_id
-        }
-    )
-    
-    if 'Item' in response:
-        user_table.delete_item(
-            Key={
-                'user_ID' : entered_id
-            },
+    try:
+        response = cognito_client.admin_delete_user(
+            UserPoolId = os.getenv("AWS_USERPOOL_ID"),
+            Username = entered_id,
         )
         return {
             'statusCode': 200,
             'body': json.dumps(f'{entered_id} deleted!'),
         }
-
+    except:
+        return {
+            'statusCode' : 400,
+            'body': json.dumps(f'{entered_id} failed!'),
+        }
 
 def lambda_handler(event, context):
     body = json.loads(event['body'])
